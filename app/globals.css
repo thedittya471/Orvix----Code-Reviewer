@@ -58,38 +58,38 @@
 }
 
 .dark {
-  --background: oklch(0.1797 0.0043 308.1928);
-  --foreground: oklch(0.8109 0 0);
-  --card: oklch(0.1822 0 0);
-  --card-foreground: oklch(0.8109 0 0);
-  --popover: oklch(0.1797 0.0043 308.1928);
-  --popover-foreground: oklch(0.8109 0 0);
-  --primary: oklch(0.7214 0.1337 49.9802);
-  --primary-foreground: oklch(0.1797 0.0043 308.1928);
-  --secondary: oklch(0.5940 0.0443 196.0233);
-  --secondary-foreground: oklch(0.1797 0.0043 308.1928);
-  --muted: oklch(0.2520 0 0);
-  --muted-foreground: oklch(0.6268 0 0);
-  --accent: oklch(0.3211 0 0);
-  --accent-foreground: oklch(0.8109 0 0);
-  --destructive: oklch(0.5940 0.0443 196.0233);
-  --destructive-foreground: oklch(0.1797 0.0043 308.1928);
-  --border: oklch(0.2520 0 0);
-  --input: oklch(0.2520 0 0);
-  --ring: oklch(0.7214 0.1337 49.9802);
-  --chart-1: oklch(0.5940 0.0443 196.0233);
-  --chart-2: oklch(0.7214 0.1337 49.9802);
-  --chart-3: oklch(0.8721 0.0864 68.5474);
-  --chart-4: oklch(0.6268 0 0);
-  --chart-5: oklch(0.6830 0 0);
-  --sidebar: oklch(0.1822 0 0);
-  --sidebar-foreground: oklch(0.8109 0 0);
-  --sidebar-primary: oklch(0.7214 0.1337 49.9802);
-  --sidebar-primary-foreground: oklch(0.1797 0.0043 308.1928);
-  --sidebar-accent: oklch(0.3211 0 0);
-  --sidebar-accent-foreground: oklch(0.8109 0 0);
-  --sidebar-border: oklch(0.2520 0 0);
-  --sidebar-ring: oklch(0.7214 0.1337 49.9802);
+  --background: oklch(0.115 0.012 285);
+  --foreground: oklch(0.94 0.008 285);
+  --card: oklch(0.155 0.014 285);
+  --card-foreground: oklch(0.94 0.008 285);
+  --popover: oklch(0.165 0.014 285);
+  --popover-foreground: oklch(0.94 0.008 285);
+  --primary: oklch(0.72 0.17 285);
+  --primary-foreground: oklch(0.985 0.004 285);
+  --secondary: oklch(0.72 0.11 205);
+  --secondary-foreground: oklch(0.12 0.012 285);
+  --muted: oklch(0.205 0.014 285);
+  --muted-foreground: oklch(0.67 0.015 285);
+  --accent: oklch(0.23 0.035 285);
+  --accent-foreground: oklch(0.94 0.008 285);
+  --destructive: oklch(0.65 0.2 25);
+  --destructive-foreground: oklch(0.98 0.005 25);
+  --border: oklch(0.27 0.02 285);
+  --input: oklch(0.23 0.018 285);
+  --ring: oklch(0.72 0.17 285);
+  --chart-1: oklch(0.72 0.17 285);
+  --chart-2: oklch(0.72 0.11 205);
+  --chart-3: oklch(0.78 0.14 80);
+  --chart-4: oklch(0.68 0.16 335);
+  --chart-5: oklch(0.74 0.13 155);
+  --sidebar: oklch(0.145 0.014 285);
+  --sidebar-foreground: oklch(0.94 0.008 285);
+  --sidebar-primary: oklch(0.72 0.17 285);
+  --sidebar-primary-foreground: oklch(0.985 0.004 285);
+  --sidebar-accent: oklch(0.23 0.035 285);
+  --sidebar-accent-foreground: oklch(0.94 0.008 285);
+  --sidebar-border: oklch(0.27 0.02 285);
+  --sidebar-ring: oklch(0.72 0.17 285);
   --font-sans: Geist Mono, ui-monospace, monospace;
   --font-serif: serif;
   --font-mono: JetBrains Mono, monospace;
@@ -171,11 +171,245 @@
 }
 
 @layer base {
+  html {
+    color-scheme: dark;
+  }
   * {
     @apply border-border outline-ring/50;
   }
   body {
     @apply bg-background text-foreground;
     letter-spacing: var(--tracking-normal);
+  }
+}
+
+@keyframes ambient-float {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(3rem, 2rem, 0) scale(1.08);
+  }
+}
+
+@keyframes ambient-grid-drift {
+  to {
+    background-position: 72px 72px;
+  }
+}
+
+@keyframes border-orbit {
+  to {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+
+@keyframes reveal-up {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes spotlight-sweep {
+  0%,
+  100% {
+    opacity: 0.62;
+    transform: translate3d(-4%, -2%, 0) rotate(-18deg) scale(0.96);
+  }
+  50% {
+    opacity: 1;
+    transform: translate3d(10%, 4%, 0) rotate(-12deg) scale(1.08);
+  }
+}
+
+@keyframes hero-image-drift {
+  0%,
+  100% {
+    transform: scale(1.035) translate3d(0, 0, 0);
+  }
+  50% {
+    transform: scale(1.075) translate3d(-0.8%, -0.6%, 0);
+  }
+}
+
+@keyframes review-layer-float {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -10px, 0);
+  }
+}
+
+@keyframes review-scan {
+  0% {
+    opacity: 0;
+    transform: translateY(-90px);
+  }
+  15%,
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(430px);
+  }
+}
+
+@keyframes review-flow {
+  to {
+    stroke-dashoffset: -88;
+  }
+}
+
+@keyframes review-pulse {
+  0%,
+  100% {
+    opacity: 0.68;
+    transform: scale(0.96);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.04);
+  }
+}
+
+@keyframes review-orbit {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes review-code-flicker {
+  0%,
+  100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 0.72;
+  }
+}
+
+.ambient-orb {
+  animation: ambient-float 18s ease-in-out infinite;
+}
+
+.ambient-orb-delayed {
+  animation-delay: -7s;
+  animation-duration: 22s;
+}
+
+.ambient-orb-slow {
+  animation-delay: -12s;
+  animation-duration: 28s;
+}
+
+.ambient-grid {
+  background-image:
+    linear-gradient(rgb(255 255 255 / 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(255 255 255 / 0.035) 1px, transparent 1px);
+  background-size: 72px 72px;
+  mask-image: linear-gradient(to bottom, black, transparent 92%);
+  animation: ambient-grid-drift 18s linear infinite;
+}
+
+.border-beam {
+  animation: border-orbit 7s linear infinite;
+}
+
+.reveal-up {
+  animation: reveal-up 700ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.reveal-delay-1 {
+  animation-delay: 90ms;
+}
+
+.reveal-delay-2 {
+  animation-delay: 180ms;
+}
+
+.reveal-delay-3 {
+  animation-delay: 270ms;
+}
+
+.spotlight-beam {
+  animation: spotlight-sweep 12s ease-in-out infinite;
+}
+
+.hero-image-drift {
+  animation: hero-image-drift 16s ease-in-out infinite;
+}
+
+.review-layer {
+  animation: review-layer-float 7s ease-in-out infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.review-layer-back {
+  animation-delay: -4s;
+}
+
+.review-layer-middle {
+  animation-delay: -2s;
+}
+
+.review-scan {
+  animation: review-scan 5.5s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+.review-flow {
+  stroke-dasharray: 8 12;
+  animation: review-flow 3s linear infinite;
+}
+
+.review-pulse,
+.review-node {
+  animation: review-pulse 3.4s ease-in-out infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.review-node-one {
+  animation-delay: -1.3s;
+}
+
+.review-node-two {
+  animation-delay: -2.1s;
+}
+
+.review-orbit {
+  animation: review-orbit 34s linear infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.review-code-lines {
+  animation: review-code-flicker 4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ambient-orb,
+  .ambient-grid,
+  .border-beam,
+  .reveal-up,
+  .spotlight-beam,
+  .hero-image-drift,
+  .review-layer,
+  .review-scan,
+  .review-flow,
+  .review-pulse,
+  .review-node,
+  .review-orbit,
+  .review-code-lines {
+    animation: none;
   }
 }
