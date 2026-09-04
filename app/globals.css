@@ -171,7 +171,7 @@
 }
 
 @layer base {
-  html {
+  html.dark {
     color-scheme: dark;
   }
   * {
@@ -297,6 +297,117 @@
   }
 }
 
+@keyframes landing-aurora-float {
+  0%,
+  100% {
+    transform: translate3d(-50%, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(-46%, 3rem, 0) scale(1.08);
+  }
+}
+
+@keyframes landing-beam-travel {
+  0%,
+  100% {
+    opacity: 0.15;
+    transform: translateY(-22%);
+  }
+  50% {
+    opacity: 0.7;
+    transform: translateY(28%);
+  }
+}
+
+@keyframes landing-orbit {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes landing-float {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -9px, 0);
+  }
+}
+
+@keyframes landing-scroll-line {
+  0% {
+    opacity: 0;
+    transform: scaleY(0);
+    transform-origin: top;
+  }
+  45% {
+    opacity: 1;
+    transform: scaleY(1);
+    transform-origin: top;
+  }
+  55% {
+    opacity: 1;
+    transform: scaleY(1);
+    transform-origin: bottom;
+  }
+  100% {
+    opacity: 0;
+    transform: scaleY(0);
+    transform-origin: bottom;
+  }
+}
+
+@keyframes architecture-core-pulse {
+  0%,
+  100% {
+    opacity: 0.3;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+}
+
+@keyframes landing-graph-flow {
+  to {
+    stroke-dashoffset: -48;
+  }
+}
+
+@keyframes landing-node-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes landing-comment-float {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -7px, 0);
+  }
+}
+
+@keyframes landing-cta-beam {
+  0%,
+  100% {
+    opacity: 0.4;
+    transform: translateX(-50%) rotate(-5deg) scaleX(0.8);
+  }
+  50% {
+    opacity: 0.9;
+    transform: translateX(-50%) rotate(5deg) scaleX(1.2);
+  }
+}
+
 .ambient-orb {
   animation: ambient-float 18s ease-in-out infinite;
 }
@@ -396,6 +507,116 @@
   animation: review-code-flicker 4s ease-in-out infinite;
 }
 
+.landing-gradient-text {
+  background: linear-gradient(110deg, #f8fafc 8%, #a5f3fc 48%, #c4b5fd 82%);
+  background-clip: text;
+  color: transparent;
+}
+
+.landing-page {
+  isolation: isolate;
+  overscroll-behavior-y: none;
+}
+
+.landing-content-section {
+  contain: layout paint style;
+}
+
+.landing-dot-grid {
+  background-image: radial-gradient(rgb(255 255 255 / 0.14) 0.7px, transparent 0.7px);
+  background-size: 22px 22px;
+}
+
+.landing-aurora {
+  animation: landing-aurora-float 16s ease-in-out infinite;
+  will-change: transform;
+}
+
+.landing-beam {
+  animation: landing-beam-travel 9s ease-in-out infinite;
+}
+
+.landing-beam-two {
+  animation-delay: -4.5s;
+  animation-duration: 12s;
+}
+
+.landing-hero-orbit {
+  animation: landing-orbit 34s linear infinite;
+  will-change: transform;
+}
+
+.landing-hero-orbit-reverse {
+  animation-direction: reverse;
+  animation-duration: 26s;
+}
+
+.landing-floating-signal {
+  animation: landing-float 6s ease-in-out infinite;
+  will-change: transform;
+}
+
+.landing-scroll-line {
+  animation: landing-scroll-line 2.2s ease-in-out infinite;
+}
+
+.architecture-core-pulse {
+  animation: architecture-core-pulse 2.8s ease-in-out infinite;
+}
+
+.landing-graph-lines {
+  animation: landing-graph-flow 3s linear infinite;
+}
+
+.landing-graph-node {
+  animation: landing-node-pulse 3s ease-in-out infinite;
+}
+
+.landing-comment {
+  animation: landing-comment-float 5s ease-in-out infinite;
+}
+
+.landing-comment-two {
+  animation-delay: -2.5s;
+}
+
+.landing-policy-ring {
+  animation: landing-orbit 24s linear infinite;
+}
+
+.landing-policy-ring-two {
+  animation-direction: reverse;
+  animation-duration: 18s;
+}
+
+.landing-cta::before {
+  position: absolute;
+  inset: -1px;
+  content: "";
+  background: linear-gradient(110deg, transparent 20%, rgb(103 232 249 / 0.14), transparent 52%);
+  transform: translateX(-100%);
+  animation: landing-shimmer 8s ease-in-out infinite;
+}
+
+.landing-cta-beam {
+  animation: landing-cta-beam 8s ease-in-out infinite;
+}
+
+.landing-ring {
+  box-shadow: 0 0 0 90px rgb(255 255 255 / 0.015), 0 0 0 180px rgb(255 255 255 / 0.01);
+}
+
+@keyframes landing-shimmer {
+  0%,
+  20% {
+    transform: translateX(-100%);
+  }
+  70%,
+  100% {
+    transform: translateX(100%);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .ambient-orb,
   .ambient-grid,
@@ -409,7 +630,19 @@
   .review-pulse,
   .review-node,
   .review-orbit,
-  .review-code-lines {
+  .review-code-lines,
+  .landing-aurora,
+  .landing-beam,
+  .landing-hero-orbit,
+  .landing-floating-signal,
+  .landing-scroll-line,
+  .architecture-core-pulse,
+  .landing-graph-lines,
+  .landing-graph-node,
+  .landing-comment,
+  .landing-policy-ring,
+  .landing-cta::before,
+  .landing-cta-beam {
     animation: none;
   }
 }
