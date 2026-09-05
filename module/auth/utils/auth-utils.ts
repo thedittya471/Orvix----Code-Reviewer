@@ -22,7 +22,7 @@ export const requireUnAuth = async () => {
     })
 
     if (session){
-        redirect("/")
+        redirect("/dashboard")
     }
 
     return session

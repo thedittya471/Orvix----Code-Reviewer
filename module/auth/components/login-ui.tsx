@@ -30,7 +30,7 @@ const LoginUi = () => {
     try {
       const result = await signIn.social({
         provider: "github",
-        callbackURL: "/",
+        callbackURL: "/dashboard",
       });
 
       if (result.error) {
