@@ -1,5 +1,6 @@
 "use client"
 import React from "react"
+import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
@@ -11,9 +12,13 @@ import {
   type ChartConfig,
 } from "@/components/ui/chart"
 import { Area, AreaChart, CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts"
-import { GitCommit, GitPullRequest, MessageSquare, GitBranch } from "lucide-react"
+import { GitCommit, GitPullRequest, MessageSquare, GitBranch, TriangleAlert } from "lucide-react"
 import { useQuery } from "@tanstack/react-query"
-import { getDashboardData } from "@/module/dashboard/actions"
+import {
+  getContributionCalendar,
+  getDashboardStats,
+  getMonthlyActivity
+} from "@/module/dashboard/actions"
 import { ContributionHeatmap } from "@/module/dashboard/components/contribution-heatmap"
 
 // chart-2 / chart-3 are a colourblind-safe pair against the dark surface
@@ -62,16 +67,27 @@ const ChartEmpty = ({ isLoading }: { isLoading: boolean }) =>
 
 export const DashboardView = () => {
 
-  const {data, isLoading} = useQuery({
-    queryKey:["dashboard"],
-    queryFn: async() => await getDashboardData()
+  // Three independent queries so each band renders the moment its own data
+  // lands, instead of every band waiting on the slowest one.
+  const {data: stats, isLoading: isStatsLoading} = useQuery({
+    queryKey:["dashboard", "stats"],
+    queryFn: async() => await getDashboardStats()
   })
 
-  const stats = data?.stats
-  const monthlyActivity = data?.monthlyActivity
-  const calendar = data?.calendar
+  const {data: calendar, isLoading: isCalendarLoading} = useQuery({
+    queryKey:["dashboard", "calendar"],
+    queryFn: async() => await getContributionCalendar()
+  })
+
+  const {data: activity, isLoading: isActivityLoading} = useQuery({
+    queryKey:["dashboard", "monthly"],
+    queryFn: async() => await getMonthlyActivity()
+  })
+
+  const monthlyActivity = activity?.months
 
   const hasActivity = Boolean(monthlyActivity?.length)
+  const authExpired = [stats?.error, calendar?.error, activity?.error].includes("github_auth")
 
   return (
     <div className="flex flex-col gap-6">
@@ -82,34 +98,50 @@ export const DashboardView = () => {
         </p>
       </div>
 
+      {authExpired ? (
+        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3">
+          <TriangleAlert className="size-4 shrink-0 text-destructive" />
+          <p className="flex-1 text-sm">
+            GitHub rejected your saved access token, so this dashboard has no data
+            to show. Signing in again issues a fresh one.
+          </p>
+          <Link
+            href="/login"
+            className="rounded-md bg-foreground px-3 py-1.5 text-xs font-medium text-background transition-opacity hover:opacity-80"
+          >
+            Reconnect GitHub
+          </Link>
+        </div>
+      ) : null}
+
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           title="Commits"
           value={stats?.totalCommits}
           description="Contributions in the last year"
           icon={GitCommit}
-          isLoading={isLoading}
+          isLoading={isStatsLoading}
         />
         <StatCard
           title="Pull requests"
           value={stats?.totalPRs}
           description="Opened by you in the last year"
           icon={GitPullRequest}
-          isLoading={isLoading}
+          isLoading={isStatsLoading}
         />
         <StatCard
           title="AI reviews"
           value={stats?.totalReviews}
           description="Completed by Orvix"
           icon={MessageSquare}
-          isLoading={isLoading}
+          isLoading={isStatsLoading}
         />
         <StatCard
           title="Repositories"
           value={stats?.totalRepos}
           description="Connected to Orvix"
           icon={GitBranch}
-          isLoading={isLoading}
+          isLoading={isStatsLoading}
         />
       </div>
 
@@ -117,13 +149,13 @@ export const DashboardView = () => {
         <CardHeader>
           <CardTitle>Contributions</CardTitle>
           <CardDescription>
-            {isLoading
+            {isCalendarLoading
               ? "Loading the last year of activity"
               : `${(calendar?.totalContributions ?? 0).toLocaleString("en-US")} contributions in the last year`}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <ContributionHeatmap days={calendar?.days ?? []} isLoading={isLoading} />
+          <ContributionHeatmap days={calendar?.days ?? []} isLoading={isCalendarLoading} />
         </CardContent>
       </Card>
 
@@ -154,7 +186,7 @@ export const DashboardView = () => {
                 </AreaChart>
               </ChartContainer>
             ) : (
-              <ChartEmpty isLoading={isLoading} />
+              <ChartEmpty isLoading={isActivityLoading} />
             )}
           </CardContent>
         </Card>
@@ -192,7 +224,7 @@ export const DashboardView = () => {
                 </LineChart>
               </ChartContainer>
             ) : (
-              <ChartEmpty isLoading={isLoading} />
+              <ChartEmpty isLoading={isActivityLoading} />
             )}
           </CardContent>
         </Card>

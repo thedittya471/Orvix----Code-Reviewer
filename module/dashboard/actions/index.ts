@@ -1,12 +1,29 @@
 "use server"
 
-import { fetchViewerActivity, getGithubToken } from "@/module/github/lib/github"
+import prisma from "@/lib/db"
 import { getCurrentSession } from "@/lib/session"
+import {
+    GithubAuthError,
+    fetchContributionCalendar,
+    fetchPullRequestDates,
+    fetchViewerTotals,
+    getGithubToken
+} from "@/module/github/lib/github"
 
 const MONTH_NAMES = [
     "Jan", "Feb", "Mar", "Apr", "May", "Jun",
     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
 ]
+
+export type DashboardError = "github_auth" | "unknown"
+
+export type DashboardStats = {
+    error?: DashboardError
+    totalCommits: number
+    totalPRs: number
+    totalReviews: number
+    totalRepos: number
+}
 
 export type MonthlyActivity = {
     month: string
@@ -15,24 +32,30 @@ export type MonthlyActivity = {
     reviews: number
 }
 
-export type DashboardData = {
-    stats: {
-        totalCommits: number
-        totalPRs: number
-        totalReviews: number
-        totalRepos: number
-    }
-    monthlyActivity: MonthlyActivity[]
-    calendar: {
-        totalContributions: number
-        days: { date: string; count: number }[]
-    }
+export type MonthlyActivityResult = {
+    error?: DashboardError
+    months: MonthlyActivity[]
 }
 
-const EMPTY_DASHBOARD: DashboardData = {
-    stats: { totalCommits: 0, totalPRs: 0, totalReviews: 0, totalRepos: 0 },
-    monthlyActivity: [],
-    calendar: { totalContributions: 0, days: [] }
+export type ContributionCalendarResult = {
+    error?: DashboardError
+    totalContributions: number
+    days: { date: string; count: number }[]
+}
+
+function classify(error: unknown): DashboardError {
+    return error instanceof GithubAuthError ? "github_auth" : "unknown"
+}
+
+/** Every action needs the same two things before it can talk to GitHub. */
+async function requireGithub() {
+    const session = await getCurrentSession()
+
+    if (!session?.user) {
+        throw new Error("Unauthorized")
+    }
+
+    return { userId: session.user.id, token: await getGithubToken() }
 }
 
 // TODO: replace with real AI reviews once they are persisted.
@@ -46,24 +69,63 @@ const generateSampleReviews = () => {
         const reviewDate = new Date(now)
         reviewDate.setDate(reviewDate.getDate() - randomDaysAgo)
 
-        sampleReviews.push({
-            createdAt: reviewDate
-        })
+        sampleReviews.push({ createdAt: reviewDate })
     }
 
     return sampleReviews
 }
 
-export async function getDashboardData(): Promise<DashboardData> {
+/** The light query — this is what lets the stat tiles paint first. */
+export async function getDashboardStats(): Promise<DashboardStats> {
     try {
-        const session = await getCurrentSession()
+        const { userId, token } = await requireGithub()
 
-        if (!session?.user) {
-            throw new Error("Unauthorized")
+        const [totals, totalRepos] = await Promise.all([
+            fetchViewerTotals(token, userId),
+            prisma.repository.count({ where: { userId } })
+        ])
+
+        return {
+            totalCommits: totals.totalContributions,
+            totalPRs: totals.totalPullRequestContributions,
+            // TODO: count ai reviews from database
+            totalReviews: 87,
+            totalRepos
         }
+    } catch (error) {
+        console.error("Error fetching dashboard stats:", error)
+        return {
+            error: classify(error),
+            totalCommits: 0,
+            totalPRs: 0,
+            totalReviews: 0,
+            totalRepos: 0
+        }
+    }
+}
 
-        const token = await getGithubToken()
-        const activity = await fetchViewerActivity(token, session.user.id)
+export async function getContributionCalendar(): Promise<ContributionCalendarResult> {
+    try {
+        const { userId, token } = await requireGithub()
+        const calendar = await fetchContributionCalendar(token, userId)
+
+        return { totalContributions: calendar.totalContributions, days: calendar.days }
+    } catch (error) {
+        console.error("Error fetching contribution calendar:", error)
+        return { error: classify(error), totalContributions: 0, days: [] }
+    }
+}
+
+export async function getMonthlyActivity(): Promise<MonthlyActivityResult> {
+    try {
+        const { userId, token } = await requireGithub()
+
+        // Shares fetchContributionCalendar with the heatmap action; whichever
+        // resolves second reads it from the cache rather than GitHub.
+        const [calendar, pullRequestDates] = await Promise.all([
+            fetchContributionCalendar(token, userId),
+            fetchPullRequestDates(token, userId)
+        ])
 
         const monthlyData: {
             [key: string]: { commits: number; prs: number; reviews: number }
@@ -76,7 +138,7 @@ export async function getDashboardData(): Promise<DashboardData> {
             monthlyData[MONTH_NAMES[date.getMonth()]] = { commits: 0, prs: 0, reviews: 0 }
         }
 
-        activity.days.forEach((day) => {
+        calendar.days.forEach((day) => {
             const monthKey = MONTH_NAMES[new Date(day.date).getMonth()]
 
             if (monthlyData[monthKey]) {
@@ -84,7 +146,7 @@ export async function getDashboardData(): Promise<DashboardData> {
             }
         })
 
-        activity.pullRequestDates.forEach((createdAt) => {
+        pullRequestDates.forEach((createdAt) => {
             const monthKey = MONTH_NAMES[new Date(createdAt).getMonth()]
 
             if (monthlyData[monthKey]) {
@@ -92,9 +154,7 @@ export async function getDashboardData(): Promise<DashboardData> {
             }
         })
 
-        const reviews = generateSampleReviews()
-
-        reviews.forEach((review) => {
+        generateSampleReviews().forEach((review) => {
             const monthKey = MONTH_NAMES[review.createdAt.getMonth()]
 
             if (monthlyData[monthKey]) {
@@ -103,25 +163,13 @@ export async function getDashboardData(): Promise<DashboardData> {
         })
 
         return {
-            stats: {
-                totalCommits: activity.totalContributions,
-                totalPRs: activity.totalPullRequestContributions,
-                // TODO: count ai reviews from database
-                totalReviews: 87,
-                // TODO: fetch total connected repos from db
-                totalRepos: 40
-            },
-            monthlyActivity: Object.entries(monthlyData).map(([month, data]) => ({
+            months: Object.entries(monthlyData).map(([month, data]) => ({
                 month,
                 ...data
-            })),
-            calendar: {
-                totalContributions: activity.totalContributions,
-                days: activity.days
-            }
+            }))
         }
     } catch (error) {
-        console.error("Error fetching dashboard data:", error)
-        return EMPTY_DASHBOARD
+        console.error("Error fetching monthly activity:", error)
+        return { error: classify(error), months: [] }
     }
 }

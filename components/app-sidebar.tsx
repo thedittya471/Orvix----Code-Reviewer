@@ -36,7 +36,6 @@ import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
-    DropdownMenuLabel,
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
@@ -52,7 +51,7 @@ type NavItem = {
 
 const workspaceNav: NavItem[] = [
     { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-    { title: "Repositories", href: "/dashboard/repositories", icon: FolderGit2, nested: true },
+    { title: "Repositories", href: "/dashboard/repository", icon: FolderGit2, nested: true },
     { title: "Reviews", href: "/dashboard/reviews", icon: GitPullRequest, nested: true },
 ]
 
@@ -158,32 +157,17 @@ const AppSidebar = ({ user, ...props }: AppSidebarProps) => {
             <SidebarFooter>
                 <SidebarMenu>
                     <SidebarMenuItem>
-                        <SidebarMenuButton
-                            tooltip="Toggle theme"
-                            onClick={() =>
-                                setTheme(resolvedTheme === "dark" ? "light" : "dark")
-                            }
-                        >
-                            {/* Driven by the `dark` class so there is no hydration flash. */}
-                            <Moon className="size-4 dark:hidden" />
-                            <Sun className="hidden size-4 dark:block" />
-                            <span>
-                                <span className="dark:hidden">Dark mode</span>
-                                <span className="hidden dark:inline">Light mode</span>
-                            </span>
-                        </SidebarMenuButton>
-                    </SidebarMenuItem>
-
-                    <SidebarMenuItem>
                         {user ? (
                             <DropdownMenu>
+                                {/* openOnHover on the menu rather than a HoverCard:
+                                    Base UI's preview card is for non-interactive
+                                    previews, and this popup holds real controls that
+                                    need focus management and keyboard access. */}
                                 <DropdownMenuTrigger
-                                    render={
-                                        <SidebarMenuButton
-                                            size="lg"
-                                            tooltip={user.name || user.email || "Account"}
-                                        />
-                                    }
+                                    openOnHover
+                                    delay={150}
+                                    closeDelay={200}
+                                    render={<SidebarMenuButton size="lg" />}
                                 >
                                     <Avatar size="sm">
                                         {user.image ? (
@@ -200,13 +184,49 @@ const AppSidebar = ({ user, ...props }: AppSidebarProps) => {
                                         </span>
                                     </div>
                                 </DropdownMenuTrigger>
-                                <DropdownMenuContent side="top" align="end" className="min-w-56">
-                                    <DropdownMenuLabel className="truncate">
-                                        {user.email}
-                                    </DropdownMenuLabel>
+                                <DropdownMenuContent
+                                    side="right"
+                                    align="end"
+                                    sideOffset={8}
+                                    className="w-72 min-w-72 p-2"
+                                >
+                                    <div className="flex items-center gap-3 px-1.5 py-2.5">
+                                        <Avatar size="lg">
+                                            {user.image ? (
+                                                <AvatarImage src={user.image} alt={user.name ?? "User avatar"} />
+                                            ) : null}
+                                            <AvatarFallback>{initialsOf(user.name, user.email)}</AvatarFallback>
+                                        </Avatar>
+                                        <div className="grid min-w-0 flex-1 leading-tight">
+                                            <span className="truncate text-sm font-medium">
+                                                {user.name || "Account"}
+                                            </span>
+                                            <span className="truncate text-xs text-muted-foreground">
+                                                {user.email}
+                                            </span>
+                                        </div>
+                                    </div>
+
                                     <DropdownMenuSeparator />
+
+                                    <DropdownMenuItem
+                                        // Keep the menu open so the theme change is
+                                        // visible without reopening it.
+                                        closeOnClick={false}
+                                        onClick={() =>
+                                            setTheme(resolvedTheme === "dark" ? "light" : "dark")
+                                        }
+                                        className="py-1.5"
+                                    >
+                                        {/* Driven by the `dark` class so there is no hydration flash. */}
+                                        <Moon className="size-4 dark:hidden" />
+                                        <Sun className="hidden size-4 dark:block" />
+                                        <span className="dark:hidden">Dark mode</span>
+                                        <span className="hidden dark:inline">Light mode</span>
+                                    </DropdownMenuItem>
                                     <DropdownMenuItem
                                         render={<Link href="/dashboard/settings" />}
+                                        className="py-1.5"
                                     >
                                         <Settings className="size-4" />
                                         Settings
@@ -215,6 +235,7 @@ const AppSidebar = ({ user, ...props }: AppSidebarProps) => {
                                         variant="destructive"
                                         disabled={signingOut}
                                         onClick={handleSignOut}
+                                        className="py-1.5"
                                     >
                                         <LogOut className="size-4" />
                                         {signingOut ? "Signing out…" : "Sign out"}
@@ -231,6 +252,7 @@ const AppSidebar = ({ user, ...props }: AppSidebarProps) => {
                             </SidebarMenuButton>
                         )}
                     </SidebarMenuItem>
+
                 </SidebarMenu>
             </SidebarFooter>
 
