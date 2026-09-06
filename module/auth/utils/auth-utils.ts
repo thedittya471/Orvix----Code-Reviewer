@@ -1,13 +1,10 @@
 "use server"
 
-import { auth } from "@/lib/auth"
-import { headers } from "next/headers"
+import { getCurrentSession } from "@/lib/session"
 import { redirect } from "next/navigation"
 
 export const requireAuth = async () => {
-    const session = await auth.api.getSession({
-        headers: await headers()
-    })
+    const session = await getCurrentSession()
 
     if (!session){
         redirect("/login")
@@ -17,9 +14,7 @@ export const requireAuth = async () => {
 }
 
 export const requireUnAuth = async () => {
-    const session = await auth.api.getSession({
-        headers: await headers()
-    })
+    const session = await getCurrentSession()
 
     if (session){
         redirect("/dashboard")

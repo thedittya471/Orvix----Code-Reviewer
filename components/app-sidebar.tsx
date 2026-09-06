@@ -16,7 +16,7 @@ import {
     Sun,
 } from "lucide-react"
 
-import { signOut, useSession } from "@/lib/auth-client"
+import { signOut } from "@/lib/auth-client"
 import {
     Sidebar,
     SidebarContent,
@@ -28,7 +28,6 @@ import {
     SidebarMenu,
     SidebarMenuButton,
     SidebarMenuItem,
-    SidebarMenuSkeleton,
     SidebarRail,
     SidebarSeparator,
 } from "@/components/ui/sidebar"
@@ -74,15 +73,26 @@ function initialsOf(name?: string | null, email?: string | null) {
     return parts.slice(0, 2).map((part) => part[0]!.toUpperCase()).join("") || "?"
 }
 
-const AppSidebar = ({ ...props }: React.ComponentProps<typeof Sidebar>) => {
+export type SidebarUser = {
+    name?: string | null
+    email?: string | null
+    image?: string | null
+}
+
+type AppSidebarProps = React.ComponentProps<typeof Sidebar> & {
+    /**
+     * Handed down from the layout, which already resolved the session server-side.
+     * Calling useSession() here would refetch the same session over the network
+     * on every page load just to render a name and an avatar.
+     */
+    user?: SidebarUser | null
+}
+
+const AppSidebar = ({ user, ...props }: AppSidebarProps) => {
     const pathname = usePathname()
     const router = useRouter()
     const { resolvedTheme, setTheme } = useTheme()
-    const { data: session, isPending } = useSession()
-
     const [signingOut, setSigningOut] = React.useState(false)
-
-    const user = session?.user
 
     const handleSignOut = async () => {
         if (signingOut) return
@@ -165,9 +175,7 @@ const AppSidebar = ({ ...props }: React.ComponentProps<typeof Sidebar>) => {
                     </SidebarMenuItem>
 
                     <SidebarMenuItem>
-                        {isPending ? (
-                            <SidebarMenuSkeleton showIcon />
-                        ) : user ? (
+                        {user ? (
                             <DropdownMenu>
                                 <DropdownMenuTrigger
                                     render={

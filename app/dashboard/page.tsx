@@ -1,7 +1,7 @@
-import React from "react"
+import { DashboardView } from "@/module/dashboard/components/dashboard-view"
 
 const DashboardPage = () => {
-  return <div>Dashboard</div>
+  return <DashboardView />
 }
 
 export default DashboardPage

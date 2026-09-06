@@ -38,6 +38,7 @@
     "octokit": "^5.0.5",
     "pg": "^8.23.0",
     "react": "19.2.8",
+    "react-activity-calendar": "^3.2.1",
     "react-aria-components": "^1.20.0",
     "react-day-picker": "^10.0.1",
     "react-dom": "19.2.8",
