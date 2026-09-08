@@ -78,6 +78,12 @@ function withAuthErrors<T>(operation: () => Promise<T>) {
     })
 }
 
+export type GithubErrorKind = "github_auth" | "unknown"
+
+export function classifyGithubError(error: unknown): GithubErrorKind {
+    return error instanceof GithubAuthError ? "github_auth" : "unknown"
+}
+
 export type ViewerTotals = {
     login: string
     totalCommitContributions: number
@@ -236,13 +242,17 @@ export const getRepositories = async (page:number = 1, perPage:number=10) => {
     const token = await getGithubToken()
     const octokit = new Octokit({auth:token})
 
-    const {data} = await octokit.rest.repos.listForAuthenticatedUser({
-        sort:"updated",
-        direction:"desc",
-        visibility:"all",
-        per_page:perPage,
-        page:page
-    })
+    // withAuthErrors so a rejected token surfaces as GithubAuthError rather than
+    // a raw octokit HttpError the caller cannot classify.
+    const {data} = await withAuthErrors(() =>
+        octokit.rest.repos.listForAuthenticatedUser({
+            sort:"updated",
+            direction:"desc",
+            visibility:"all",
+            per_page:perPage,
+            page:page
+        })
+    )
 
     return data;
 }

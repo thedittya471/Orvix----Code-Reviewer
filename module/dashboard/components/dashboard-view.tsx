@@ -1,6 +1,5 @@
 "use client"
 import React from "react"
-import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
@@ -20,6 +19,7 @@ import {
   getMonthlyActivity
 } from "@/module/dashboard/actions"
 import { ContributionHeatmap } from "@/module/dashboard/components/contribution-heatmap"
+import { ReconnectGithub } from "@/module/auth/components/reconnect-github"
 
 // chart-2 / chart-3 are a colourblind-safe pair against the dark surface
 // (deutan ΔE 17.3). chart-4 against chart-2 is not (ΔE 3.3) — don't swap them in.
@@ -105,12 +105,7 @@ export const DashboardView = () => {
             GitHub rejected your saved access token, so this dashboard has no data
             to show. Signing in again issues a fresh one.
           </p>
-          <Link
-            href="/login"
-            className="rounded-md bg-foreground px-3 py-1.5 text-xs font-medium text-background transition-opacity hover:opacity-80"
-          >
-            Reconnect GitHub
-          </Link>
+          <ReconnectGithub />
         </div>
       ) : null}
 

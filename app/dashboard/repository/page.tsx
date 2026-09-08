@@ -11,10 +11,12 @@ import { useState } from "react"
 import { useMutation, useQueryClient, type InfiniteData } from "@tanstack/react-query"
 import { useRepositories } from '@/module/repository/hooks/reuse-repositories'
 import { RepositorySkeletonList } from '@/module/repository/components/repository-skeleton'
+import { ReconnectGithub } from '@/module/auth/components/reconnect-github'
 import {
     connectRepository,
     disconnectRepository,
-    type RepositoryListItem
+    type RepositoryListItem,
+    type RepositoryPage
 } from '@/module/repository/actions'
 
 // A few common languages get their familiar colour; everything else falls back
@@ -100,24 +102,27 @@ const RepositoryPage = () => {
         // Patch the one repo in place rather than invalidating: a refetch would
         // re-request every page loaded so far and reset the scroll position.
         onSuccess: (result) => {
-            queryClient.setQueryData<InfiniteData<RepositoryListItem[]>>(
+            queryClient.setQueryData<InfiniteData<RepositoryPage>>(
                 ["repositories"],
                 (current) =>
                     current && {
                         ...current,
-                        pages: current.pages.map((page) =>
-                            page.map((repo) =>
+                        pages: current.pages.map((page) => ({
+                            ...page,
+                            items: page.items.map((repo) =>
                                 repo.id === result.githubId
                                     ? { ...repo, isConnected: result.isConnected }
                                     : repo
                             )
-                        )
+                        }))
                     }
             )
         }
     })
 
-    const allRepositories = data?.pages.flatMap(page => page) || []
+    const allRepositories = data?.pages.flatMap(page => page.items) || []
+    const authExpired = data?.pages.some(page => page.error === "github_auth") ?? false
+    const loadFailed = isError || (data?.pages.some(page => page.error) ?? false)
 
     const filteredRepositories = allRepositories.filter((repo: RepositoryListItem) =>
         repo.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -146,13 +151,15 @@ const RepositoryPage = () => {
                 />
             </div>
 
-            {isError ? (
-                <div className="flex items-center gap-3 rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3">
+            {loadFailed ? (
+                <div className="flex flex-wrap items-center gap-3 rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3">
                     <TriangleAlert className="size-4 shrink-0 text-destructive" />
-                    <p className="text-sm">
-                        We could not load your repositories. Check that your GitHub
-                        connection is still valid, then try again.
+                    <p className="flex-1 text-sm">
+                        {authExpired
+                            ? "GitHub rejected your saved access token, so your repositories cannot be listed. Signing in again issues a fresh one."
+                            : "We could not load your repositories. Please try again."}
                     </p>
+                    {authExpired ? <ReconnectGithub callbackURL="/dashboard/repository" /> : null}
                 </div>
             ) : null}
 
@@ -162,7 +169,7 @@ const RepositoryPage = () => {
                 </div>
             ) : null}
 
-            {!isLoading && !isError && filteredRepositories.length === 0 ? (
+            {!isLoading && !loadFailed && filteredRepositories.length === 0 ? (
                 <div className="flex h-40 items-center justify-center rounded-lg border border-dashed">
                     <p className="text-sm text-muted-foreground">
                         {searchQuery

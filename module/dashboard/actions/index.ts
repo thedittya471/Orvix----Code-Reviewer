@@ -3,7 +3,7 @@
 import prisma from "@/lib/db"
 import { getCurrentSession } from "@/lib/session"
 import {
-    GithubAuthError,
+    classifyGithubError,
     fetchContributionCalendar,
     fetchPullRequestDates,
     fetchViewerTotals,
@@ -43,9 +43,7 @@ export type ContributionCalendarResult = {
     days: { date: string; count: number }[]
 }
 
-function classify(error: unknown): DashboardError {
-    return error instanceof GithubAuthError ? "github_auth" : "unknown"
-}
+const classify = classifyGithubError
 
 /** Every action needs the same two things before it can talk to GitHub. */
 async function requireGithub() {

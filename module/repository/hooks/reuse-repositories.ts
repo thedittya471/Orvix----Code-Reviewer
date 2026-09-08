@@ -10,7 +10,9 @@ export const useRepositories = () => {
             return data
         },
         getNextPageParam:(lastPage, allPages) => {
-            if(lastPage.length < 10) return undefined;
+            // Stop paging on a failed page too, or the sentinel would keep
+            // asking for the next one forever.
+            if(lastPage.error || lastPage.items.length < 10) return undefined;
             return allPages.length + 1
         },
         initialPageParam:1,
