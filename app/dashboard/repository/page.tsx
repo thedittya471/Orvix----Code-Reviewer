@@ -8,19 +8,15 @@ import { Input } from "@/components/ui/input"
 import { ExternalLink, Star, Search, Check, Plus, TriangleAlert, GitFork } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import { useState } from "react"
-import { useMutation, useQueryClient, type InfiniteData } from "@tanstack/react-query"
 import { useRepositories } from '@/module/repository/hooks/reuse-repositories'
 import { RepositorySkeletonList } from '@/module/repository/components/repository-skeleton'
 import { ReconnectGithub } from '@/module/auth/components/reconnect-github'
+import { type RepositoryListItem } from '@/module/repository/actions'
 import {
-    connectRepository,
-    disconnectRepository,
-    type RepositoryListItem,
-    type RepositoryPage
-} from '@/module/repository/actions'
+    useConnectRepository,
+    useDisconnectRepository
+} from '@/module/repository/hooks/use-connect-repository'
 
-// A few common languages get their familiar colour; everything else falls back
-// to a neutral dot rather than an invented hue.
 const LANGUAGE_COLORS: Record<string, string> = {
     TypeScript: "#3178c6",
     JavaScript: "#f1e05a",
@@ -56,9 +52,10 @@ const RepositoryPage = () => {
     } = useRepositories()
 
     const [searchQuery, setSearchQuery] = useState("")
-    const queryClient = useQueryClient()
 
-    // The observer is created once, so it must not close over stale query state.
+    const connect = useConnectRepository()
+    const disconnect = useDisconnectRepository()
+
     const onIntersect = React.useRef<() => void>(() => {})
 
     React.useEffect(() => {
@@ -69,8 +66,6 @@ const RepositoryPage = () => {
         }
     }, [hasNextPage, isFetchingNextPage, fetchNextPage])
 
-    // Callback ref rather than useEffect: the sentinel mounts and unmounts as
-    // hasNextPage flips, and an effect would not re-run to observe the new node.
     const sentinelRef = React.useCallback((node: HTMLDivElement | null) => {
         if (!node) return
 
@@ -80,7 +75,6 @@ const RepositoryPage = () => {
                     onIntersect.current()
                 }
             },
-            // Start the next page before the sentinel is actually on screen.
             { rootMargin: "300px" }
         )
 
@@ -88,37 +82,24 @@ const RepositoryPage = () => {
         return () => observer.disconnect()
     }, [])
 
-    const { mutate: toggleConnection, isPending, variables } = useMutation({
-        mutationFn: async (repo: RepositoryListItem) =>
-            repo.isConnected
-                ? disconnectRepository(repo.id)
-                : connectRepository({
-                    githubId: repo.id,
-                    name: repo.name,
-                    owner: repo.owner.login,
-                    fullName: repo.full_name,
-                    url: repo.html_url
-                }),
-        // Patch the one repo in place rather than invalidating: a refetch would
-        // re-request every page loaded so far and reset the scroll position.
-        onSuccess: (result) => {
-            queryClient.setQueryData<InfiniteData<RepositoryPage>>(
-                ["repositories"],
-                (current) =>
-                    current && {
-                        ...current,
-                        pages: current.pages.map((page) => ({
-                            ...page,
-                            items: page.items.map((repo) =>
-                                repo.id === result.githubId
-                                    ? { ...repo, isConnected: result.isConnected }
-                                    : repo
-                            )
-                        }))
-                    }
-            )
+    const toggleConnection = (repo: RepositoryListItem) => {
+        if (repo.isConnected) {
+            disconnect.mutate({ githubId: repo.id })
+            return
         }
-    })
+
+        connect.mutate({
+            owner: repo.owner.login,
+            repo: repo.name,
+            githubId: repo.id
+        })
+    }
+
+    const pendingGithubId = connect.isPending
+        ? connect.variables?.githubId
+        : disconnect.isPending
+            ? disconnect.variables?.githubId
+            : undefined
 
     const allRepositories = data?.pages.flatMap(page => page.items) || []
     const authExpired = data?.pages.some(page => page.error === "github_auth") ?? false
@@ -181,7 +162,7 @@ const RepositoryPage = () => {
 
             <div className="flex flex-col gap-3">
                 {filteredRepositories.map((repo) => {
-                    const busy = isPending && variables?.id === repo.id
+                    const busy = pendingGithubId === repo.id
 
                     return (
                         <Card
@@ -189,8 +170,6 @@ const RepositoryPage = () => {
                             className="overflow-hidden p-0 transition-colors hover:border-ring/40"
                         >
                             <div className="flex items-start justify-between gap-4 px-5 py-4">
-                                {/* Connected repos get a spine of colour so they read
-                                    as a group when scanning a long list. */}
                                 <div
                                     aria-hidden="true"
                                     className={cn(
@@ -255,8 +234,6 @@ const RepositoryPage = () => {
                                     <Button
                                         variant="ghost"
                                         size="icon-sm"
-                                        // It renders an anchor, not a button — without this
-                                        // Base UI warns and applies native button semantics.
                                         nativeButton={false}
                                         aria-label={`Open ${repo.full_name} on GitHub`}
                                         render={
@@ -296,8 +273,6 @@ const RepositoryPage = () => {
                 {isFetchingNextPage ? <RepositorySkeletonList count={5} /> : null}
             </div>
 
-            {/* Auto-loads the next page. Disabled while searching, since the filter
-                only covers pages already fetched. */}
             {hasNextPage && !searchQuery ? <div ref={sentinelRef} className="h-px" /> : null}
         </div>
     )

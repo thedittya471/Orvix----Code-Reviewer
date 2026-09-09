@@ -36,6 +36,7 @@ model Repository {
   owner    String
   fullName String
   url      String
+  webhookId BigInt?
   userId   String
   user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())

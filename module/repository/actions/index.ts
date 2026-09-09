@@ -2,7 +2,13 @@
 
 import prisma from "@/lib/db"
 import { getCurrentSession } from "@/lib/session"
-import { classifyGithubError, getRepositories, type GithubErrorKind } from "@/module/github/lib/github"
+import {
+    classifyGithubError,
+    createWebhook,
+    deleteWebhook,
+    getRepositories,
+    type GithubErrorKind
+} from "@/module/github/lib/github"
 
 export type GithubRepository = Awaited<ReturnType<typeof getRepositories>>[number]
 
@@ -13,11 +19,6 @@ export type RepositoryPage = {
     items: RepositoryListItem[]
 }
 
-/**
- * Returns the failure rather than throwing. A thrown server action becomes a 500
- * that React Query retries three times — and a rejected token will never
- * succeed, so that was three doomed GitHub calls per page load.
- */
 export const fetchRepositories = async(page:number=1, perPage:number = 10): Promise<RepositoryPage> => {
     try {
         const session = await getCurrentSession()
@@ -48,45 +49,33 @@ export const fetchRepositories = async(page:number=1, perPage:number = 10): Prom
     }
 }
 
-type ConnectRepositoryInput = {
-    githubId: number
-    name: string
-    owner: string
-    fullName: string
-    url: string
-}
-
-/**
- * githubId is a BigInt column but arrives as a number and must leave as one —
- * a BigInt cannot cross the server-action boundary to the client.
- */
-export const connectRepository = async (repo: ConnectRepositoryInput) => {
+export const connectRepository = async (owner: string, repo: string, githubId: number) => {
     const session = await getCurrentSession()
 
     if (!session) {
         throw new Error("Unauthorized")
     }
 
+    const webhook = await createWebhook(owner, repo)
+
+    const fields = {
+        name: repo,
+        owner,
+        fullName: `${owner}/${repo}`,
+        url: `https://github.com/${owner}/${repo}`,
+        webhookId: BigInt(webhook.id),
+        userId: session.user.id
+    }
+
     await prisma.repository.upsert({
-        where: { githubId: BigInt(repo.githubId) },
-        create: {
-            githubId: BigInt(repo.githubId),
-            name: repo.name,
-            owner: repo.owner,
-            fullName: repo.fullName,
-            url: repo.url,
-            userId: session.user.id
-        },
-        update: {
-            name: repo.name,
-            owner: repo.owner,
-            fullName: repo.fullName,
-            url: repo.url,
-            userId: session.user.id
-        }
+        where: { githubId: BigInt(githubId) },
+        create: { githubId: BigInt(githubId), ...fields },
+        update: fields
     })
 
-    return { githubId: repo.githubId, isConnected: true }
+    //TODO: Trigger Repository indexing for rag(fire and forget)
+
+    return { githubId, isConnected: true }
 }
 
 export const disconnectRepository = async (githubId: number) => {
@@ -96,11 +85,23 @@ export const disconnectRepository = async (githubId: number) => {
         throw new Error("Unauthorized")
     }
 
-    await prisma.repository.deleteMany({
+    const repository = await prisma.repository.findFirst({
         where: {
             githubId: BigInt(githubId),
             userId: session.user.id
         }
+    })
+
+    if (!repository) {
+        return { githubId, isConnected: false }
+    }
+
+    if (repository.webhookId) {
+        await deleteWebhook(repository.owner, repository.name, Number(repository.webhookId))
+    }
+
+    await prisma.repository.delete({
+        where: { id: repository.id }
     })
 
     return { githubId, isConnected: false }

@@ -5,6 +5,7 @@ import { ThemeProvider } from "@/components/providers/theme-provider";
 
 import "./globals.css";
 import { QueryProvider } from "@/components/providers/query-provider";
+import { Toaster } from "sonner";
 
 const fontSans = Geist({
   subsets: ["latin"],
@@ -34,6 +35,7 @@ export default function RootLayout({
         <QueryProvider>
           <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false} disableTransitionOnChange>
             {children}
+            <Toaster richColors position="top-center" />
           </ThemeProvider>
         </QueryProvider>
       </body>

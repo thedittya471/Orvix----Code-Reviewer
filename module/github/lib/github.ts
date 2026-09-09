@@ -256,3 +256,63 @@ export const getRepositories = async (page:number = 1, perPage:number=10) => {
 
     return data;
 }
+
+/**
+ * GitHub calls this URL, so it must be publicly reachable — in development that
+ * means the ngrok URL in NEXT_PUBLIC_APP_BASE_URL. The trailing slash is
+ * stripped because the stored value may or may not carry one, and the two
+ * spellings would look like different hooks to the duplicate check below.
+ */
+export function githubWebhookUrl() {
+    const base = process.env.NEXT_PUBLIC_APP_BASE_URL?.replace(/\/+$/, "")
+
+    if (!base) {
+        throw new Error("NEXT_PUBLIC_APP_BASE_URL is not set")
+    }
+
+    return `${base}/api/webhooks/github`
+}
+
+
+export const createWebhook = async (owner: string, repo: string) => {
+    const token = await getGithubToken()
+    const octokit = new Octokit({ auth: token })
+    const url = githubWebhookUrl()
+
+    return withAuthErrors(async () => {
+        const { data: hooks } = await octokit.rest.repos.listWebhooks({ owner, repo })
+        const existing = hooks.find((hook) => hook.config.url === url)
+
+        if (existing) {
+            return existing
+        }
+
+        const { data } = await octokit.rest.repos.createWebhook({
+            owner,
+            repo,
+            events: ["pull_request"],
+            active: true,
+            config: {
+                url,
+                content_type: "json",
+                secret: process.env.GITHUB_WEBHOOK_SECRET,
+                insecure_ssl: "0"
+            }
+        })
+
+        return data
+    })
+}
+
+export const deleteWebhook = async (owner: string, repo: string, hookId: number) => {
+    const token = await getGithubToken()
+    const octokit = new Octokit({ auth: token })
+
+    try {
+        await octokit.rest.repos.deleteWebhook({ owner, repo, hook_id: hookId })
+    } catch (error) {
+        if ((error as { status?: number })?.status !== 404) {
+            throw error
+        }
+    }
+}
