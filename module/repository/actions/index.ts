@@ -5,10 +5,10 @@ import { getCurrentSession } from "@/lib/session"
 import {
     classifyGithubError,
     createWebhook,
-    deleteWebhook,
     getRepositories,
     type GithubErrorKind
 } from "@/module/github/lib/github"
+import { removeRepositoryConnection } from "@/module/repository/lib/disconnect-repository"
 
 export type GithubRepository = Awaited<ReturnType<typeof getRepositories>>[number]
 
@@ -96,13 +96,7 @@ export const disconnectRepository = async (githubId: number) => {
         return { githubId, isConnected: false }
     }
 
-    if (repository.webhookId) {
-        await deleteWebhook(repository.owner, repository.name, Number(repository.webhookId))
-    }
-
-    await prisma.repository.delete({
-        where: { id: repository.id }
-    })
+    await removeRepositoryConnection(repository)
 
     return { githubId, isConnected: false }
 }
