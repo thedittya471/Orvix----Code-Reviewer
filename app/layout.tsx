@@ -22,11 +22,11 @@ export const metadata: Metadata = {
   description: "AI-assisted code and pull request review.",
 };
 
-export default function RootLayout({
+const RootLayout = ({
   children,
 }: Readonly<{
   children: React.ReactNode;
-}>) {
+}>) => {
   return (
     <html lang="en" suppressHydrationWarning>
       <body
@@ -42,3 +42,5 @@ export default function RootLayout({
     </html>
   );
 }
+
+export default RootLayout

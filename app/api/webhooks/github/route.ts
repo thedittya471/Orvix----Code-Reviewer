@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import prisma from "@/lib/db"
 import { verifyGithubSignature, type PullRequestEvent } from "@/module/github/lib/webhook"
-import { reviewPullRequest } from "@/module/ai/lib/actions"
+import { reviewPullRequest } from "@/module/ai/actions"
 
 export async function POST(req: NextRequest) {
     try {

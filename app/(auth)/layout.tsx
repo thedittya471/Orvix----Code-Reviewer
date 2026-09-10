@@ -1,6 +1,6 @@
 import { AmbientBackground } from "@/components/effects/ambient-background";
 
-export default function AuthLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+const AuthLayout = ({ children }: Readonly<{ children: React.ReactNode }>) => {
   return (
     <>
       <AmbientBackground />
@@ -8,3 +8,5 @@ export default function AuthLayout({ children }: Readonly<{ children: React.Reac
     </>
   );
 }
+
+export default AuthLayout
