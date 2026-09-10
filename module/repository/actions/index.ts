@@ -1,5 +1,6 @@
 "use server"
 
+import { inngest } from "@/inngest/client"
 import prisma from "@/lib/db"
 import { getCurrentSession } from "@/lib/session"
 import {
@@ -19,18 +20,18 @@ export type RepositoryPage = {
     items: RepositoryListItem[]
 }
 
-export const fetchRepositories = async(page:number=1, perPage:number = 10): Promise<RepositoryPage> => {
+export const fetchRepositories = async (page: number = 1, perPage: number = 10): Promise<RepositoryPage> => {
     try {
         const session = await getCurrentSession()
 
-        if(!session) {
+        if (!session) {
             throw new Error("Unauthorized")
         }
 
         const githubRepos = await getRepositories(page, perPage)
 
         const dbRepos = await prisma.repository.findMany({
-            where:{
+            where: {
                 userId: session.user.id
             }
         })
@@ -40,7 +41,7 @@ export const fetchRepositories = async(page:number=1, perPage:number = 10): Prom
         return {
             items: githubRepos.map((repo) => ({
                 ...repo,
-                isConnected:connectedRepoIds.has(BigInt(repo.id))
+                isConnected: connectedRepoIds.has(BigInt(repo.id))
             }))
         }
     } catch (error) {
@@ -74,6 +75,18 @@ export const connectRepository = async (owner: string, repo: string, githubId: n
     })
 
     //TODO: Trigger Repository indexing for rag(fire and forget)
+    try {
+        await inngest.send({
+            name: "repository.connected",
+            data: {
+                owner,
+                repo,
+                userId: session.user.id
+            }
+        })
+    } catch (error) {
+        console.error("Failed to trigger repository indexing:", error)
+    }
 
     return { githubId, isConnected: true }
 }
