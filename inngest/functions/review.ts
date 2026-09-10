@@ -30,7 +30,7 @@ export const generateReview = inngest.createFunction(
     },
 
     async ({ event, step }) => {
-        const { owner, repo, prNumber, userId } = event.data
+        const { repositoryId, owner, repo, prNumber, userId } = event.data
 
         const { diff, title, description, token } = await step.run("fetch-pr-data", async () => {
             const account = await prisma.account.findFirst({
@@ -54,7 +54,7 @@ export const generateReview = inngest.createFunction(
         const context = await step.run("retrieve-context", async () => {
             const query = `${title}\n${description}`
 
-            return await retrieveContext(query, `${owner}/${repo}`)
+            return await retrieveContext(query, repositoryId)
         })
 
 

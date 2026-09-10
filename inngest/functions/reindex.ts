@@ -9,7 +9,8 @@ const SKIPPED_FILES = /\.(png|jpe?g|gif|svg|ico|pdf|zip|tar|gz|lock)$/i
 export const reindexRepo = inngest.createFunction(
     { id: "repo-reindex", triggers: { event: "repository.push" } },
     async ({ event, step }) => {
-        const { owner, repo, userId, changed, removed } = event.data as {
+        const { repositoryId, owner, repo, userId, changed, removed } = event.data as {
+            repositoryId: string
             owner: string
             repo: string
             userId: string
@@ -17,10 +18,8 @@ export const reindexRepo = inngest.createFunction(
             removed: string[]
         }
 
-        const repoId = `${owner}/${repo}`
-
         await step.run("delete-removed-vectors", async () => {
-            await deleteFileVectors(repoId, removed)
+            await deleteFileVectors(repositoryId, removed)
         })
 
         const indexable = changed.filter((path) => !SKIPPED_FILES.test(path))
@@ -59,7 +58,7 @@ export const reindexRepo = inngest.createFunction(
                 return { indexed: 0, failed: [] as string[] }
             }
 
-            return await indexCodebase(repoId, files)
+            return await indexCodebase(repositoryId, files)
         })
 
         return { success: true, indexed: result?.indexed ?? 0, removed: removed.length }

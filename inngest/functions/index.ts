@@ -6,7 +6,7 @@ import { indexCodebase } from "@/module/ai/lib/rag";
 export const indexRepo = inngest.createFunction(
   { id: "repo-index", triggers: { event: "repository.connected" } },
   async ({ event, step }) => {
-    const { owner, repo, userId } = event.data
+    const { repositoryId, owner, repo, userId } = event.data
 
     //files
     const files = await step.run("fetch-files", async () => {
@@ -26,7 +26,7 @@ export const indexRepo = inngest.createFunction(
     })
 
     await step.run("index-codebase", async () => {
-      await indexCodebase(`${owner}/${repo}`, files)
+      await indexCodebase(repositoryId, files)
     })
 
     return {

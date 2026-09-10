@@ -55,6 +55,7 @@ export async function POST(req: NextRequest) {
             await inngest.send({
                 name: "repository.push",
                 data: {
+                    repositoryId: repository.id,
                     owner: repository.owner,
                     repo: repository.name,
                     userId: repository.userId,

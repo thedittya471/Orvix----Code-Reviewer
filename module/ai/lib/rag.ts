@@ -17,7 +17,7 @@ export async function generateEmbedding(text: string) {
     return embedding
 }
 
-export async function indexCodebase(repoId: string, files: { path: string; content: string }[]) {
+export async function indexCodebase(repositoryId: string, files: { path: string; content: string }[]) {
     const vectors = []
 
     for (const file of files) {
@@ -29,10 +29,10 @@ export async function indexCodebase(repoId: string, files: { path: string; conte
             const embedding = await generateEmbedding(truncatedContent)
 
             vectors.push({
-                id: vectorIdFor(repoId, file.path),
+                id: vectorIdFor(repositoryId, file.path),
                 values: embedding,
                 metadata: {
-                    repoId,
+                    repositoryId,
                     path: file.path,
                     content: truncatedContent
                 }
@@ -57,15 +57,15 @@ export async function indexCodebase(repoId: string, files: { path: string; conte
     console.log("indexgin complete")
 }
 
-export async function retrieveContext(query: string, repoId: string, topK: number = 5) {
+export async function retrieveContext(query: string, repositoryId: string, topK: number = 5) {
     const embedding = await generateEmbedding(query)
 
     const response = await pineconeIndex.query({
         topK: topK,
         vector: embedding,
         filter: {
-            repoId: {
-                $eq: repoId
+            repositoryId: {
+                $eq: repositoryId
             }
         },
         includeMetadata: true
@@ -74,26 +74,26 @@ export async function retrieveContext(query: string, repoId: string, topK: numbe
     return response.matches.map(match => match.metadata?.content as string).filter(Boolean)
 }
 
-export function vectorIdFor(repoId: string, path: string) {
-    return `${repoId}-${path.replace(/\//g, '_')}`
+export function vectorIdFor(repositoryId: string, path: string) {
+    return `${repositoryId}-${path.replace(/\//g, '_')}`
 }
 
-export async function deleteRepoVectors(repoId: string) {
+export async function deleteRepoVectors(repositoryId: string) {
     await pineconeIndex.deleteMany({
         filter: {
-            repoId: {
-                $eq: repoId
+            repositoryId: {
+                $eq: repositoryId
             }
         }
     })
 }
 
-export async function deleteFileVectors(repoId: string, paths: string[]) {
+export async function deleteFileVectors(repositoryId: string, paths: string[]) {
     if (paths.length === 0) {
         return
     }
 
     await pineconeIndex.deleteMany({
-        ids: paths.map((path) => vectorIdFor(repoId, path))
+        ids: paths.map((path) => vectorIdFor(repositoryId, path))
     })
 }

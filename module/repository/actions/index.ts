@@ -68,17 +68,18 @@ export const connectRepository = async (owner: string, repo: string, githubId: n
         userId: session.user.id
     }
 
-    await prisma.repository.upsert({
+    const repository = await prisma.repository.upsert({
         where: { githubId: BigInt(githubId) },
         create: { githubId: BigInt(githubId), ...fields },
-        update: fields
+        update: fields,
+        select: { id: true }
     })
 
-    //TODO: Trigger Repository indexing for rag(fire and forget)
     try {
         await inngest.send({
             name: "repository.connected",
             data: {
+                repositoryId: repository.id,
                 owner,
                 repo,
                 userId: session.user.id

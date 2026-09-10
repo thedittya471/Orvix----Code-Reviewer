@@ -68,6 +68,7 @@ export async function reviewPullRequest(
         await inngest.send({
             name: "pr.review.requested",
             data: {
+                repositoryId: repository.id,
                 owner,
                 repo,
                 prNumber,
