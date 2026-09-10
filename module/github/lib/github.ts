@@ -243,6 +243,8 @@ export function githubWebhookUrl() {
 }
 
 
+const WEBHOOK_EVENTS = ["pull_request", "push"] as const
+
 export const createWebhook = async (owner: string, repo: string) => {
     const token = await getGithubToken()
     const octokit = new Octokit({ auth: token })
@@ -253,13 +255,26 @@ export const createWebhook = async (owner: string, repo: string) => {
         const existing = hooks.find((hook) => hook.config.url === url)
 
         if (existing) {
-            return existing
+            const missing = WEBHOOK_EVENTS.filter((name) => !existing.events.includes(name))
+
+            if (missing.length === 0) {
+                return existing
+            }
+
+            const { data } = await octokit.rest.repos.updateWebhook({
+                owner,
+                repo,
+                hook_id: existing.id,
+                events: [...WEBHOOK_EVENTS]
+            })
+
+            return data
         }
 
         const { data } = await octokit.rest.repos.createWebhook({
             owner,
             repo,
-            events: ["pull_request"],
+            events: [...WEBHOOK_EVENTS],
             active: true,
             config: {
                 url,
@@ -371,14 +386,35 @@ export async function postReviewcomment(
     owner: string,
     repo: string,
     prNumber: number,
-    review: string
+    review: string,
+    commentId?: number | null
 ) {
     const octokit = new Octokit({ auth: token })
+    const body = `## AI Code Review\n\n${review}\n\n---\n*Powered by Orvix*`
 
-    await octokit.rest.issues.createComment({
+    if (commentId) {
+        try {
+            const { data } = await octokit.rest.issues.updateComment({
+                owner,
+                repo,
+                comment_id: commentId,
+                body
+            })
+
+            return data.id
+        } catch (error) {
+            if ((error as { status?: number })?.status !== 404) {
+                throw error
+            }
+        }
+    }
+
+    const { data } = await octokit.rest.issues.createComment({
         owner,
         repo,
         issue_number: prNumber,
-        body: `## AI Code Review\n\n${review}\n\n---\n*Powered by Orvix`
+        body
     })
+
+    return data.id
 }

@@ -6,6 +6,8 @@ import AppSidebar from "@/components/app-sidebar"
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { Separator } from "@/components/ui/separator"
 
+export const instant = false
+
 const DashboardLayout = async ({ children }: { children: React.ReactNode }) => {
   const session = await requireAuth()
 

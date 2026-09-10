@@ -10,6 +10,7 @@ export type ReviewListItem = {
     prUrl: string
     review: string
     status: string
+    error: string | null
     createdAt: Date
     repository: {
         id: string
@@ -39,6 +40,7 @@ export async function getReviews(): Promise<ReviewListItem[]> {
             prUrl: true,
             review: true,
             status: true,
+            error: true,
             createdAt: true,
             repository: {
                 select: {

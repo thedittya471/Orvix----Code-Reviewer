@@ -3,19 +3,6 @@ import { inngest } from "../client";
 import { getRepoFileContents } from "@/module/github/lib/github";
 import { indexCodebase } from "@/module/ai/lib/rag";
 
-export const processTask = inngest.createFunction(
-  { id: "process-task", triggers: { event: "app/task.created" } },
-  async ({ event, step }) => {
-    const result = await step.run("handle-task", async () => {
-      return { processed: true, id: event.data.id };
-    });
-
-    await step.sleep("pause", "1s");
-
-    return { message: `Task ${event.data.id} complete`, result };
-  }
-);
-
 export const indexRepo = inngest.createFunction(
   { id: "repo-index", triggers: { event: "repository.connected" } },
   async ({ event, step }) => {
@@ -48,4 +35,5 @@ export const indexRepo = inngest.createFunction(
     }
   }
 )
-export { generateReview } from "./review";
+export { generateReview } from "./review"
+export { reindexRepo } from "./reindex"

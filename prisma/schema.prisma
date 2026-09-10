@@ -54,10 +54,13 @@ model Review {
   prTitle      String
   prUrl        String
   review       String   @db.Text
-  status       String   @default("completed") // completed, failed, pending
+  status       String   @default("pending") // completed, failed, pending
+  commentId    BigInt?
+  error        String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
+  @@unique([repositoryId, prNumber])
   @@index([repositoryId])
   @@map("review")
 }

@@ -7,7 +7,27 @@ import prisma from "@/lib/db"
 
 
 export const generateReview = inngest.createFunction(
-    { id: "generate-review", triggers: { event: "pr.review.requested" } },
+    {
+        id: "generate-review",
+        triggers: { event: "pr.review.requested" },
+        onFailure: async ({ event, error }) => {
+            const { owner, repo, prNumber } = event.data.event.data
+
+            const repository = await prisma.repository.findFirst({
+                where: { owner, name: repo },
+                select: { id: true }
+            })
+
+            if (!repository) {
+                return
+            }
+
+            await prisma.review.updateMany({
+                where: { repositoryId: repository.id, prNumber },
+                data: { status: "failed", error: error.message }
+            })
+        }
+    },
 
     async ({ event, step }) => {
         const { owner, repo, prNumber, userId } = event.data
@@ -75,30 +95,62 @@ export const generateReview = inngest.createFunction(
             return text
         })
 
-        await step.run("post-comment", async () => {
-            await postReviewcomment(token, owner, repo, prNumber, review)
-        })
-
         await step.run("save-review", async () => {
             const repository = await prisma.repository.findFirst({
                 where: {
                     owner,
                     name: repo
-                }
+                },
+                select: { id: true }
             })
 
-            if (repository) {
-                await prisma.review.create({
-                    data: {
-                        repositoryId: repository.id,
-                        prNumber,
-                        prTitle: title,
-                        prUrl: `https://github.com/${owner}/${repo}/pull/${prNumber}`,
-                        review,
-                        status: "completed"
-                    }
-                })
+            if (!repository) {
+                return
             }
+
+            const existing = await prisma.review.findUnique({
+                where: {
+                    repositoryId_prNumber: {
+                        repositoryId: repository.id,
+                        prNumber
+                    }
+                },
+                select: { commentId: true }
+            })
+
+            const commentId = await postReviewcomment(
+                token,
+                owner,
+                repo,
+                prNumber,
+                review,
+                existing?.commentId ? Number(existing.commentId) : null
+            )
+
+            await prisma.review.upsert({
+                where: {
+                    repositoryId_prNumber: {
+                        repositoryId: repository.id,
+                        prNumber
+                    }
+                },
+                create: {
+                    repositoryId: repository.id,
+                    prNumber,
+                    prTitle: title,
+                    prUrl: `https://github.com/${owner}/${repo}/pull/${prNumber}`,
+                    review,
+                    status: "completed",
+                    commentId: BigInt(commentId)
+                },
+                update: {
+                    prTitle: title,
+                    review,
+                    status: "completed",
+                    error: null,
+                    commentId: BigInt(commentId)
+                }
+            })
         })
 
         return { success: true }

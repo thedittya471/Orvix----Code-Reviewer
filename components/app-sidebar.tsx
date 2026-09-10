@@ -45,7 +45,6 @@ type NavItem = {
     title: string
     href: string
     icon: React.ComponentType<{ className?: string }>
-    /** Match nested routes as well, e.g. /reviews/123. */
     nested?: boolean
 }
 
@@ -56,7 +55,7 @@ const workspaceNav: NavItem[] = [
 ]
 
 const resourcesNav: NavItem[] = [
-    { title: "Documentation", href: "/docs", icon: BookOpen, nested: true },
+    { title: "Documentation", href: "/dashboard/docs", icon: BookOpen, nested: true },
     { title: "Settings", href: "/dashboard/settings", icon: Settings, nested: true },
 ]
 
@@ -79,16 +78,12 @@ export type SidebarUser = {
 }
 
 type AppSidebarProps = React.ComponentProps<typeof Sidebar> & {
-    /**
-     * Handed down from the layout, which already resolved the session server-side.
-     * Calling useSession() here would refetch the same session over the network
-     * on every page load just to render a name and an avatar.
-     */
     user?: SidebarUser | null
 }
 
 const AppSidebar = ({ user, ...props }: AppSidebarProps) => {
     const pathname = usePathname()
+    const isSettingsRoute = pathname === "/dashboard/settings"
     const router = useRouter()
     const { resolvedTheme, setTheme } = useTheme()
     const [signingOut, setSigningOut] = React.useState(false)
@@ -159,12 +154,8 @@ const AppSidebar = ({ user, ...props }: AppSidebarProps) => {
                     <SidebarMenuItem>
                         {user ? (
                             <DropdownMenu>
-                                {/* openOnHover on the menu rather than a HoverCard:
-                                    Base UI's preview card is for non-interactive
-                                    previews, and this popup holds real controls that
-                                    need focus management and keyboard access. */}
                                 <DropdownMenuTrigger
-                                    openOnHover
+                                    openOnHover={!isSettingsRoute}
                                     delay={150}
                                     closeDelay={200}
                                     render={<SidebarMenuButton size="lg" />}
@@ -210,15 +201,12 @@ const AppSidebar = ({ user, ...props }: AppSidebarProps) => {
                                     <DropdownMenuSeparator />
 
                                     <DropdownMenuItem
-                                        // Keep the menu open so the theme change is
-                                        // visible without reopening it.
                                         closeOnClick={false}
                                         onClick={() =>
                                             setTheme(resolvedTheme === "dark" ? "light" : "dark")
                                         }
                                         className="py-1.5"
                                     >
-                                        {/* Driven by the `dark` class so there is no hydration flash. */}
                                         <Moon className="size-4 dark:hidden" />
                                         <Sun className="hidden size-4 dark:block" />
                                         <span className="dark:hidden">Dark mode</span>

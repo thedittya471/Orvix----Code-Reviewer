@@ -1,8 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { inngest } from "@/inngest/client"
 import prisma from "@/lib/db"
-import { verifyGithubSignature, type PullRequestEvent } from "@/module/github/lib/webhook"
 import { reviewPullRequest } from "@/module/ai/actions"
+import {
+    changedFilesFromPush,
+    decidePullRequestEvent,
+    decidePushEvent,
+    verifyGithubSignature,
+    type PullRequestEvent,
+    type PushEvent
+} from "@/module/github/lib/webhook"
 
 export async function POST(req: NextRequest) {
     try {
@@ -18,43 +26,67 @@ export async function POST(req: NextRequest) {
         if (event === "ping") {
             return NextResponse.json({ ok: true })
         }
-        if (event !== "pull_request") {
+
+        if (event !== "pull_request" && event !== "push") {
             return NextResponse.json({ ok: true, ignored: event })
         }
 
-        const payload = JSON.parse(rawBody) as PullRequestEvent
-
-        if (!["opened", "reopened", "synchronize"].includes(payload.action)) {
-            return NextResponse.json({ ok: true, ignored: payload.action })
-        }
-
-        if (payload.pull_request.draft) {
-            return NextResponse.json({ ok: true, ignored: "draft" })
-        }
+        const payload = JSON.parse(rawBody) as PullRequestEvent | PushEvent
 
         const repository = await prisma.repository.findUnique({
-            where: { githubId: BigInt(payload.repository.id) }
+            where: { githubId: BigInt(payload.repository.id) },
+            select: { id: true, userId: true, owner: true, name: true }
         })
 
         if (!repository) {
             return NextResponse.json({ ok: true, ignored: "repository_not_connected" })
         }
 
-        console.log(
-            `[webhook] ${payload.action} PR #${payload.pull_request.number} on ${payload.repository.full_name}`
-        )
+        if (event === "push") {
+            const push = payload as PushEvent
+            const decision = decidePushEvent(push)
 
-        const [owner, repoName] = payload.repository.full_name.split("/")
-        
-        void reviewPullRequest(owner, repoName, payload.pull_request.number)
+            if (decision.handle !== "reindex") {
+                return NextResponse.json({ ok: true, ignored: decision.reason })
+            }
+
+            const { changed, removed } = changedFilesFromPush(push)
+
+            await inngest.send({
+                name: "repository.push",
+                data: {
+                    owner: repository.owner,
+                    repo: repository.name,
+                    userId: repository.userId,
+                    changed,
+                    removed
+                }
+            })
+
+            return NextResponse.json({ ok: true, queued: "reindex" })
+        }
+
+        const pr = payload as PullRequestEvent
+        const decision = decidePullRequestEvent(pr)
+
+        if (decision.handle !== "review") {
+            return NextResponse.json({ ok: true, ignored: decision.reason })
+        }
+
+        void reviewPullRequest(
+            repository.owner,
+            repository.name,
+            pr.pull_request.number,
+            pr.pull_request.title
+        )
             .then((result) =>
-                console.log(`[webhook] queued review for ${payload.repository.full_name} #${payload.pull_request.number}:`, result)
+                console.log(`[webhook] review for ${pr.repository.full_name} #${pr.pull_request.number}:`, result)
             )
             .catch((error) =>
-                console.error(`[webhook] failed to queue review for ${payload.repository.full_name} #${payload.pull_request.number}:`, error)
+                console.error(`[webhook] failed to queue review for ${pr.repository.full_name} #${pr.pull_request.number}:`, error)
             )
 
-        return NextResponse.json({ ok: true })
+        return NextResponse.json({ ok: true, queued: "review" })
     } catch (error) {
         console.error("Error handling Github webhook:", error)
         return NextResponse.json({ error: "Webhook handler failed" }, { status: 500 })

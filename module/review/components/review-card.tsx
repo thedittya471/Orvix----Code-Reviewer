@@ -5,9 +5,9 @@ import { formatDistanceToNow } from "date-fns"
 import {
     CheckCircle2,
     ChevronDown,
-    Clock,
     ExternalLink,
     GitPullRequest,
+    Loader2,
     XCircle
 } from "lucide-react"
 
@@ -27,7 +27,7 @@ import type { ReviewListItem } from "../actions"
 const STATUS_META = {
     completed: { label: "Completed", icon: CheckCircle2, className: "text-emerald-600 dark:text-emerald-400" },
     failed: { label: "Failed", icon: XCircle, className: "text-destructive" },
-    pending: { label: "Pending", icon: Clock, className: "text-amber-600 dark:text-amber-400" }
+    pending: { label: "In progress", icon: Loader2, className: "animate-spin text-amber-600 dark:text-amber-400" }
 } as const
 
 function statusMeta(status: string) {
@@ -76,24 +76,32 @@ export function ReviewCard({ review }: { review: ReviewListItem }) {
                             <ExternalLink className="size-4" />
                         </Button>
 
-                        <CollapsibleTrigger
-                            render={<Button variant="outline" size="sm" className="gap-1.5" />}
-                        >
-                            {open ? "Hide review" : "View review"}
-                            <ChevronDown
-                                className={cn("size-4 transition-transform", open && "rotate-180")}
-                            />
-                        </CollapsibleTrigger>
+                        {review.status === "pending" ? null : (
+                            <CollapsibleTrigger
+                                render={<Button variant="outline" size="sm" className="gap-1.5" />}
+                            >
+                                {open ? "Hide review" : "View review"}
+                                <ChevronDown
+                                    className={cn("size-4 transition-transform", open && "rotate-180")}
+                                />
+                            </CollapsibleTrigger>
+                        )}
                     </div>
                 </div>
 
                 <CollapsibleContent>
                     <div className="border-t bg-muted/30 px-5 py-4">
-                        <Message from="assistant" className="max-w-full">
-                            <MessageContent>
-                                <MessageResponse>{review.review}</MessageResponse>
-                            </MessageContent>
-                        </Message>
+                        {review.status === "failed" ? (
+                            <p className="text-sm text-destructive">
+                                {review.error ?? "The review failed to generate."}
+                            </p>
+                        ) : (
+                            <Message from="assistant" className="max-w-full">
+                                <MessageContent>
+                                    <MessageResponse>{review.review}</MessageResponse>
+                                </MessageContent>
+                            </Message>
+                        )}
                     </div>
                 </CollapsibleContent>
             </Collapsible>

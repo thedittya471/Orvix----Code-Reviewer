@@ -29,7 +29,7 @@ export async function indexCodebase(repoId: string, files: { path: string; conte
             const embedding = await generateEmbedding(truncatedContent)
 
             vectors.push({
-                id: `${repoId}-${file.path.replace(/\//g, '_')}`,
+                id: vectorIdFor(repoId, file.path),
                 values: embedding,
                 metadata: {
                     repoId,
@@ -72,4 +72,28 @@ export async function retrieveContext(query: string, repoId: string, topK: numbe
     })
 
     return response.matches.map(match => match.metadata?.content as string).filter(Boolean)
+}
+
+export function vectorIdFor(repoId: string, path: string) {
+    return `${repoId}-${path.replace(/\//g, '_')}`
+}
+
+export async function deleteRepoVectors(repoId: string) {
+    await pineconeIndex.deleteMany({
+        filter: {
+            repoId: {
+                $eq: repoId
+            }
+        }
+    })
+}
+
+export async function deleteFileVectors(repoId: string, paths: string[]) {
+    if (paths.length === 0) {
+        return
+    }
+
+    await pineconeIndex.deleteMany({
+        ids: paths.map((path) => vectorIdFor(repoId, path))
+    })
 }

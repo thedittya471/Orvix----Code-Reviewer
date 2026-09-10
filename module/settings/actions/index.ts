@@ -33,7 +33,7 @@ export async function getUserProfile() {
     }
 }
 
-export async function updateUserProfile(data: { name?: string; email?: string }) {
+export async function updateUserProfile(data: { name?: string }) {
     try {
         const session = await getCurrentSession()
 
@@ -41,13 +41,21 @@ export async function updateUserProfile(data: { name?: string; email?: string })
             throw new Error("Unauthorized")
         }
 
+        const name = data.name?.trim()
+
+        if (!name) {
+            return {
+                success: false,
+                error: "Name cannot be empty"
+            }
+        }
+
         const updateUser = await prisma.user.update({
             where: {
                 id: session.user.id
             },
             data: {
-                name: data.name,
-                email: data.email
+                name
             },
             select: {
                 id: true,
@@ -176,5 +184,44 @@ export async function disconnectAllRepositories() {
             success: false,
             error: "Failed to disconnect repositories"
         }
+    }
+}
+
+export async function disconnectGithub() {
+    try {
+        const session = await getCurrentSession()
+
+        if (!session?.user) {
+            throw new Error("Unauthorized")
+        }
+
+        const repositories = await prisma.repository.findMany({
+            where: {
+                userId: session.user.id
+            }
+        })
+
+        for (const repository of repositories) {
+            try {
+                await removeRepositoryConnection(repository)
+            } catch (error) {
+                console.error(`Error disconnecting ${repository.fullName}:`, error)
+            }
+        }
+
+        await prisma.account.deleteMany({
+            where: {
+                userId: session.user.id,
+                providerId: "github"
+            }
+        })
+
+        revalidatePath("/dashboard/settings")
+        revalidatePath("/dashboard/repository")
+
+        return { success: true }
+    } catch (error) {
+        console.error("Error disconnecting GitHub:", error)
+        return { success: false, error: "Failed to disconnect GitHub" }
     }
 }

@@ -2,6 +2,7 @@
 
 import React from 'react'
 
+import { AccountActions } from '@/module/settings/components/account-actions'
 import { ProfileForm } from '@/module/settings/components/profile-form'
 import { RepositoryList } from '@/module/settings/components/repository-list'
 
@@ -17,6 +18,7 @@ const SettingsPage = () => {
 
       <ProfileForm />
       <RepositoryList />
+      <AccountActions />
     </div>
   )
 }
