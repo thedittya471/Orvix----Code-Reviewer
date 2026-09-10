@@ -4,8 +4,8 @@ import { Octokit } from "octokit"
 import prisma from "@/lib/db"
 
 import { getCurrentSession } from "@/lib/session"
+import { oc } from "date-fns/locale"
 
-/** Thrown when GitHub rejects the stored credential, as opposed to any other failure. */
 export class GithubAuthError extends Error {
     constructor(message: string) {
         super(message)
@@ -13,7 +13,6 @@ export class GithubAuthError extends Error {
     }
 }
 
-// Getting the github access token
 export const getGithubToken = cache(async () => {
     const session = await getCurrentSession()
 
@@ -21,9 +20,6 @@ export const getGithubToken = cache(async () => {
         throw new Error("Unauthorized")
     }
 
-    // orderBy matters: findFirst has no defined order, so with more than one
-    // github row for a user (re-authorising mints a new one) this could return a
-    // superseded token on one request and a live one on the next.
     const account = await prisma.account.findFirst({
         where: {
             userId: session.user.id,
@@ -41,19 +37,12 @@ export const getGithubToken = cache(async () => {
     return account.accessToken;
 })
 
-/** Contribution data changes a handful of times a day; a few minutes is plenty. */
 const VIEWER_ACTIVITY_TTL = 5 * 60
 
 export function viewerActivityTag(userId: string) {
     return `viewer-activity:${userId}`
 }
 
-/**
- * Each fetcher is cached per user across requests and keyed on userId rather
- * than the token: the token identifies the same user, and a rotation only means
- * one early miss. Nothing here reads cookies or headers — both are resolved by
- * the caller and passed in, which is what unstable_cache requires.
- */
 function cached<TArgs extends unknown[], TResult>(
     name: string,
     userId: string,
@@ -68,8 +57,6 @@ function cached<TArgs extends unknown[], TResult>(
 function withAuthErrors<T>(operation: () => Promise<T>) {
     return operation().catch((error) => {
         if ((error as { status?: number })?.status === 401) {
-            // The stored token is no longer valid — revoked, or superseded by a
-            // later authorisation. Only re-authenticating fixes it.
             throw new GithubAuthError("Github rejected the stored access token")
         }
 
@@ -91,11 +78,6 @@ export type ViewerTotals = {
     totalContributions: number
 }
 
-/**
- * Deliberately excludes the calendar and PR lists. This is the query behind the
- * stat tiles, and keeping it small is what lets them paint well before the
- * heavier calendar lands.
- */
 export const fetchViewerTotals = (token: string, userId: string) =>
     cached("viewer-totals", userId, async (): Promise<ViewerTotals> => {
         const octokit = new Octokit({ auth: token })
@@ -143,10 +125,6 @@ export type ContributionCalendar = {
     days: { date: string; count: number }[]
 }
 
-/**
- * The heavy one — a year of days. Shared by the heatmap and the monthly charts,
- * so whichever resolves second gets a cache hit instead of a second round trip.
- */
 export const fetchContributionCalendar = (token: string, userId: string) =>
     cached("contribution-calendar", userId, async (): Promise<ContributionCalendar> => {
         const octokit = new Octokit({ auth: token })
@@ -200,7 +178,6 @@ export const fetchContributionCalendar = (token: string, userId: string) =>
         }
     })()
 
-/** Creation dates of the last 100 PRs, for the monthly breakdown. */
 export const fetchPullRequestDates = (token: string, userId: string) =>
     cached("pull-request-dates", userId, async (): Promise<string[]> => {
         const octokit = new Octokit({ auth: token })
@@ -242,8 +219,6 @@ export const getRepositories = async (page: number = 1, perPage: number = 10) =>
     const token = await getGithubToken()
     const octokit = new Octokit({ auth: token })
 
-    // withAuthErrors so a rejected token surfaces as GithubAuthError rather than
-    // a raw octokit HttpError the caller cannot classify.
     const { data } = await withAuthErrors(() =>
         octokit.rest.repos.listForAuthenticatedUser({
             sort: "updated",
@@ -257,12 +232,6 @@ export const getRepositories = async (page: number = 1, perPage: number = 10) =>
     return data;
 }
 
-/**
- * GitHub calls this URL, so it must be publicly reachable — in development that
- * means the ngrok URL in NEXT_PUBLIC_APP_BASE_URL. The trailing slash is
- * stripped because the stored value may or may not carry one, and the two
- * spellings would look like different hooks to the duplicate check below.
- */
 export function githubWebhookUrl() {
     const base = process.env.NEXT_PUBLIC_APP_BASE_URL?.replace(/\/+$/, "")
 
@@ -365,4 +334,51 @@ export const getRepoFileContents = async (token: string, owner: string, repo: st
     }
 
     return files
+}
+
+export async function getPullRequestDiff(
+    token: string,
+    owner: string,
+    repo: string,
+    prNumber: number
+) {
+    const octokit = new Octokit({ auth: token })
+
+    const { data: pr } = await octokit.rest.pulls.get({
+        owner,
+        repo,
+        pull_number: prNumber
+    })
+
+    const { data: diff } = await octokit.rest.pulls.get({
+        owner,
+        repo,
+        pull_number: prNumber,
+        mediaType: {
+            format: "diff"
+        }
+    })
+
+    return {
+        diff: diff as unknown as string,
+        title: pr.title,
+        description: pr.body || ""
+    }
+}
+
+export async function postReviewcomment(
+    token: string,
+    owner: string,
+    repo: string,
+    prNumber: number,
+    review: string
+) {
+    const octokit = new Octokit({ auth: token })
+
+    await octokit.rest.issues.createComment({
+        owner,
+        repo,
+        issue_number: prNumber,
+        body: `## AI Code Review\n\n${review}\n\n---\n*Powered by Orvix`
+    })
 }

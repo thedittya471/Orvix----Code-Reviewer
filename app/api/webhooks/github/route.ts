@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import prisma from "@/lib/db"
 import { verifyGithubSignature, type PullRequestEvent } from "@/module/github/lib/webhook"
+import { reviewPullRequest } from "@/module/ai/lib/actions"
 
 export async function POST(req: NextRequest) {
     try {
@@ -43,7 +44,15 @@ export async function POST(req: NextRequest) {
             `[webhook] ${payload.action} PR #${payload.pull_request.number} on ${payload.repository.full_name}`
         )
 
-        //TODO: Queue the pull request for review (fire and forget)
+        const [owner, repoName] = payload.repository.full_name.split("/")
+        
+        void reviewPullRequest(owner, repoName, payload.pull_request.number)
+            .then((result) =>
+                console.log(`[webhook] queued review for ${payload.repository.full_name} #${payload.pull_request.number}:`, result)
+            )
+            .catch((error) =>
+                console.error(`[webhook] failed to queue review for ${payload.repository.full_name} #${payload.pull_request.number}:`, error)
+            )
 
         return NextResponse.json({ ok: true })
     } catch (error) {
