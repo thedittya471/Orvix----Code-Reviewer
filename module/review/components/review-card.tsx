@@ -23,6 +23,7 @@ import { Message, MessageContent, MessageResponse } from "@/components/ai-elemen
 import { cn } from "@/lib/utils"
 
 import type { ReviewListItem } from "../actions"
+import { useRequestReview } from "../hooks/use-request-review"
 
 const STATUS_META = {
     completed: { label: "Completed", icon: CheckCircle2, className: "text-emerald-600 dark:text-emerald-400" },
@@ -36,6 +37,7 @@ function statusMeta(status: string) {
 
 export function ReviewCard({ review }: { review: ReviewListItem }) {
     const [open, setOpen] = useState(false)
+    const retry = useRequestReview()
 
     const meta = statusMeta(review.status)
     const StatusIcon = meta.icon
@@ -43,7 +45,7 @@ export function ReviewCard({ review }: { review: ReviewListItem }) {
     return (
         <Card className="overflow-hidden p-0">
             <Collapsible open={open} onOpenChange={setOpen}>
-                <div className="flex items-start justify-between gap-4 px-5 py-4">
+                <div className="flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2.5">
                             <GitPullRequest className="size-4 shrink-0 text-muted-foreground" />
@@ -64,6 +66,11 @@ export function ReviewCard({ review }: { review: ReviewListItem }) {
                     </div>
 
                     <div className="flex shrink-0 items-center gap-2">
+                        {review.status === "failed" ? (
+                            <Button variant="outline" size="sm" disabled={retry.isPending} onClick={() => retry.mutate(review.prUrl)}>
+                                {retry.isPending ? "Queueing…" : "Retry review"}
+                            </Button>
+                        ) : null}
                         <Button
                             variant="ghost"
                             size="icon"
@@ -88,6 +95,7 @@ export function ReviewCard({ review }: { review: ReviewListItem }) {
                         )}
                     </div>
                 </div>
+                {retry.isError ? <p role="alert" className="px-5 pb-3 text-sm text-destructive">{retry.error.message}</p> : null}
 
                 <CollapsibleContent>
                     <div className="border-t bg-muted/30 px-5 py-4">

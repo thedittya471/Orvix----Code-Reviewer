@@ -33,6 +33,7 @@ Reviews are saved in PostgreSQL and posted as a comment on the pull request. Sub
 | **Repository context** | Index eligible files from the default branch as overlapping chunks and retrieve related code for reviews. |
 | **Incremental indexing** | Refresh changed files and delete removed-file vectors after default-branch pushes. |
 | **Automatic reviews** | Queue reviews when a non-draft pull request is opened, reopened, or updated with new commits. |
+| **Manual reviews and retries** | Paste an existing open PR URL on the Reviews page or retry a failed review without pushing another commit. |
 | **Readable feedback** | Request a walkthrough, summary, strengths, issues, suggestions, an optional sequence diagram, and a closing poem. |
 | **Review history** | View the latest 50 reviews with pending, completed, or failed status and failure details. |
 | **Activity dashboard** | See GitHub contributions, a contribution heatmap, six-month activity charts, connected repositories, and completed review counts. |
@@ -78,7 +79,8 @@ flowchart TD
 
 - Reviews handle `opened`, `reopened`, and `synchronize` actions; draft pull requests are skipped.
 - **Marking a draft ready does not currently trigger a review.** A subsequent commit push or reopen of the non-draft pull request can trigger one.
-- Connecting a repository does not automatically review its existing open pull requests.
+- Connecting a repository does not automatically review its existing open pull requests. Use the PR URL form on the Reviews page to request one manually.
+- Manual reviews and retries require an open, non-draft PR in a repository connected to the signed-in account. Manual requests are rejected while that PR's review is pending.
 - Push indexing only handles the repository's default branch and the changed or removed paths present in the webhook payload.
 - Initial indexing selects up to **1,500 files**, preferring smaller files. Files must be nonempty and at most **200,000 bytes**.
 - Common binary formats, generated directories, build output, and lockfiles are excluded. Downloads with NUL bytes are skipped during initial indexing.
@@ -205,6 +207,8 @@ Set `INNGEST_DEV=1` in `.env` before starting the application so events go to th
 5. Check the `generate-review` run, the **Reviews** page, and the comment on GitHub.
 6. Merge or push a change to the default branch and inspect the `repo-reindex` run.
 
+To review an existing open PR, open **Reviews**, paste its GitHub URL, and select **Review PR**. Failed review cards offer **Retry review**. Both actions use the same background workflow and existing GitHub comment update behavior as automatic reviews.
+
 ## Configuration
 
 Use this as the starting point for your local `.env`. Replace every placeholder before running the full workflow.
@@ -261,7 +265,7 @@ Environment files are ignored by Git. Keep credentials out of source control and
 | `npm start` | Start the production server after building. |
 | `npm run lint` | Run ESLint. |
 | `npx tsc --noEmit` | Check TypeScript without emitting files. |
-| `npm test` | Run Vitest once. No test files are currently committed. |
+| `npm test` | Run Vitest once, including manual review authorization, validation, retry, and queueing tests. |
 | `npm run test:watch` | Start Vitest in watch mode. |
 | `npm run db:up` | Start PostgreSQL and wait for its health check. |
 | `npm run db:down` | Stop the Docker Compose services while retaining the data volume. |
@@ -361,10 +365,10 @@ If your public origin changes, check existing repository webhook URLs. Updating 
 | A review stays pending | Check that Inngest is running, `INNGEST_DEV=1` is set locally, and `generate-review` received the event. Inspect its steps and server logs. |
 | No review after marking a draft ready | `ready_for_review` is not currently handled. Push a new commit to the non-draft PR or reopen it. |
 | Pinecone rejects vectors | Check the API key, exact index name, and **768-dimensional** index configuration. |
-| Review generation fails | Inspect the failed Inngest step for Google model access, API quotas, GitHub permissions, or Pinecone errors. A new non-draft PR commit push can queue another attempt. |
+| Review generation fails | Inspect the failed Inngest step for Google model access, API quotas, GitHub permissions, or Pinecone errors. Use **Retry review** on the failed card while the PR is open and non-draft. |
 | Review context looks incomplete | Check `repo-index` output and logs for file caps, truncation, fetch failures, or embedding failures; also confirm indexing finished before the review. |
 | Changes are not reindexed | Confirm the push was to the default branch and that the webhook subscribes to `push` events. |
-| `npm test` finds no tests | Vitest is installed, but no test files are currently committed. |
+| Manual review is rejected | Check that the PR URL points to GitHub, the repository is connected to your account, the PR is open and non-draft, and no review is already pending. |
 
 ## Contributing
 

@@ -55,7 +55,8 @@ export const DocsView = () => {
                 <CardContent className="flex flex-col gap-2 text-sm text-muted-foreground">
                     <p><span className="font-medium text-foreground">Pending</span> — queued or in progress. A review usually takes under a minute.</p>
                     <p><span className="font-medium text-foreground">Completed</span> — posted to the pull request. Re-runs update the same comment.</p>
-                    <p><span className="font-medium text-foreground">Failed</span> — the reason is shown on the review card. Re-push to retry.</p>
+                    <p><span className="font-medium text-foreground">Failed</span> — the reason is shown on the review card. Use Retry review to queue another attempt while the PR is open and non-draft.</p>
+                    <p>To review an existing open PR, paste its GitHub URL into the Review a pull request form on the Reviews page. The repository must be connected to your account.</p>
                 </CardContent>
             </Card>
 
